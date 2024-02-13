@@ -1,3 +1,3 @@
-from semanticscholar import SemanticScholar
+from pyss.semanticscholar import SemanticScholar
 
 __all__ = ["SemanticScholar"]
