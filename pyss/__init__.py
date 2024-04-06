@@ -1,3 +1,3 @@
-from pyss.semanticscholar import SemanticScholar
+from pyss.semanticscholar import NoPaperFoundException, SemanticScholar
 
-__all__ = ["SemanticScholar"]
+__all__ = ["SemanticScholar", "NoPaperFoundException"]
