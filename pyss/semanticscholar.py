@@ -420,7 +420,10 @@ class SemanticScholar(object):
             dict_data["venue"] = self.__clean(content, "venue", "")
             dict_data["publication_venue"] = self.__clean(content, "publicationVenue", "")
             dict_data["year"] = self.__clean(content, "year", 0)
-            dict_data["authors"] = self.__clean(content, "authors", [])
+            dict_data["authors"] = [
+                {"author_id": item["authorId"], "author_name": item["name"]}
+                for item in self.__clean(content, "authors", [])
+            ]
             dict_data["external_ids"] = self.__clean(content, "externalIds", {})
             dict_data["abstract"] = self.__clean(content, "abstract", "")
             dict_data["reference_count"] = self.__clean(content, "referenceCount", 0)
