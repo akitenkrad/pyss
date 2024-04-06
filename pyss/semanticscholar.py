@@ -74,7 +74,9 @@ class SemanticScholar(object):
                 res = parse_date(dic[key])
         return res
 
-    def __retry_and_wait(self, msg: str, ex: Union[HTTPError, URLError, socket.timeout, Exception], retry: int) -> int:
+    def __retry_and_wait(
+        self, msg: str, ex: Union[HTTPError, URLError, socket.timeout, Exception], retry: int, sleep: float = 3.0
+    ) -> int:
         retry += 1
         if self.__max_retry_count < retry:
             raise ex
@@ -101,10 +103,10 @@ class SemanticScholar(object):
             for _ in it:
                 time.sleep(1.0)
         else:
-            time.sleep(5.0)
+            time.sleep(sleep)
         return retry
 
-    def get_paper_id_from_title(self, title: str, api_timeout: float = 5.0) -> str:
+    def get_paper_id_from_title(self, title: str, api_timeout: float = 5.0, sleep: float = 3.0) -> str:
         """
         Retrieves the paper ID from the given title using the Semantic Scholar API.
 
@@ -134,17 +136,17 @@ class SemanticScholar(object):
                     self.__api.search_by_title.format(QUERY=urllib.parse.urlencode(params)), timeout=api_timeout
                 )
                 content = json.loads(response.read().decode("utf-8"))
-                time.sleep(3.0)
+                time.sleep(sleep)
                 break
 
             except HTTPError as ex:
-                retry = self.__retry_and_wait(f"WARNING: {str(ex)} -> Retry: {retry}", ex, retry)
+                retry = self.__retry_and_wait(f"WARNING: {str(ex)} -> Retry: {retry}", ex, retry, sleep)
             except URLError as ex:
-                retry = self.__retry_and_wait(f"WARNING: {str(ex)} -> Retry: {retry}", ex, retry)
+                retry = self.__retry_and_wait(f"WARNING: {str(ex)} -> Retry: {retry}", ex, retry, sleep)
             except socket.timeout as ex:
-                retry = self.__retry_and_wait(f"WARNING: API Timeout -> Retry: {retry}", ex, retry)
+                retry = self.__retry_and_wait(f"WARNING: API Timeout -> Retry: {retry}", ex, retry, sleep)
             except Exception as ex:
-                retry = self.__retry_and_wait(f"WARNING: {str(ex)} -> Retry: {retry}", ex, retry)
+                retry = self.__retry_and_wait(f"WARNING: {str(ex)} -> Retry: {retry}", ex, retry, sleep)
 
             if self.__max_retry_count <= retry:
                 raise NoPaperFoundException(f"Exceeded Max Retry Count @ {title}")
@@ -161,7 +163,7 @@ class SemanticScholar(object):
                 return item["paperId"].strip()
         return ""
 
-    def get_paper_detail(self, paper_id: str, api_timeout: float = 5.0) -> dict[str, Any]:
+    def get_paper_detail(self, paper_id: str, api_timeout: float = 5.0, sleep: float = 3.0) -> dict[str, Any]:
         """
         Retrieves detailed information about a paper from the Semantic Scholar API.
 
@@ -214,17 +216,17 @@ class SemanticScholar(object):
                 response = urllib.request.urlopen(
                     self.__api.search_by_id.format(PAPER_ID=paper_id, PARAMS=params), timeout=api_timeout
                 )
-                time.sleep(3.0)
+                time.sleep(sleep)
                 break
 
             except HTTPError as ex:
-                retry = self.__retry_and_wait(f"{str(ex)} -> Retry: {retry}", ex, retry)
+                retry = self.__retry_and_wait(f"{str(ex)} -> Retry: {retry}", ex, retry, sleep)
             except URLError as ex:
-                retry = self.__retry_and_wait(f"{str(ex)} -> Retry: {retry}", ex, retry)
+                retry = self.__retry_and_wait(f"{str(ex)} -> Retry: {retry}", ex, retry, sleep)
             except socket.timeout as ex:
-                retry = self.__retry_and_wait(f"API Timeout -> Retry: {retry}", ex, retry)
+                retry = self.__retry_and_wait(f"API Timeout -> Retry: {retry}", ex, retry, sleep)
             except Exception as ex:
-                retry = self.__retry_and_wait(f"{str(ex)} -> Retry: {retry}", ex, retry)
+                retry = self.__retry_and_wait(f"{str(ex)} -> Retry: {retry}", ex, retry, sleep)
 
             if self.__max_retry_count <= retry:
                 raise NoPaperFoundException(f"Exceeded Max Retry Count @ {paper_id}")
@@ -264,7 +266,7 @@ class SemanticScholar(object):
         )
         return dict_data
 
-    def get_author_detail(self, author_id: str, api_timeout: float = 5.0) -> dict[str, Any]:
+    def get_author_detail(self, author_id: str, api_timeout: float = 5.0, sleep: float = 3.0) -> dict[str, Any]:
         retry = 0
         while retry < self.__max_retry_count:
             try:
@@ -282,17 +284,17 @@ class SemanticScholar(object):
                 response = urllib.request.urlopen(
                     self.__api.search_by_author_id.format(AUTHOR_ID=author_id, PARAMS=params), timeout=api_timeout
                 )
-                time.sleep(3.0)
+                time.sleep(sleep)
                 break
 
             except HTTPError as ex:
-                retry = self.__retry_and_wait(f"{str(ex)} -> Retry: {retry}", ex, retry)
+                retry = self.__retry_and_wait(f"{str(ex)} -> Retry: {retry}", ex, retry, sleep)
             except URLError as ex:
-                retry = self.__retry_and_wait(f"{str(ex)} -> Retry: {retry}", ex, retry)
+                retry = self.__retry_and_wait(f"{str(ex)} -> Retry: {retry}", ex, retry, sleep)
             except socket.timeout as ex:
-                retry = self.__retry_and_wait(f"API Timeout -> Retry: {retry}", ex, retry)
+                retry = self.__retry_and_wait(f"API Timeout -> Retry: {retry}", ex, retry, sleep)
             except Exception as ex:
-                retry = self.__retry_and_wait(f"{str(ex)} -> Retry: {retry}", ex, retry)
+                retry = self.__retry_and_wait(f"{str(ex)} -> Retry: {retry}", ex, retry, sleep)
 
             if self.__max_retry_count <= retry:
                 raise Exception(f"Exceeded Max Retry Count @ {author_id}")
@@ -311,7 +313,7 @@ class SemanticScholar(object):
 
         return dict_data
 
-    def get_paper_references(self, paper_id: str, api_timeout: float = 5.0) -> list[dict[str, Any]]:
+    def get_paper_references(self, paper_id: str, api_timeout: float = 5.0, sleep: float = 3.0) -> list[dict[str, Any]]:
         """
         Retrieves the references of a given paper from the Semantic Scholar API.
 
@@ -382,17 +384,17 @@ class SemanticScholar(object):
                 response = urllib.request.urlopen(
                     self.__api.search_references.format(PAPER_ID=paper_id, PARAMS=params), timeout=api_timeout
                 )
-                time.sleep(3.0)
+                time.sleep(sleep)
                 break
 
             except HTTPError as ex:
-                retry = self.__retry_and_wait(f"{str(ex)} -> Retry: {retry}", ex, retry)
+                retry = self.__retry_and_wait(f"{str(ex)} -> Retry: {retry}", ex, retry, sleep)
             except URLError as ex:
-                retry = self.__retry_and_wait(f"{str(ex)} -> Retry: {retry}", ex, retry)
+                retry = self.__retry_and_wait(f"{str(ex)} -> Retry: {retry}", ex, retry, sleep)
             except socket.timeout as ex:
-                retry = self.__retry_and_wait(f"API Timeout -> Retry: {retry}", ex, retry)
+                retry = self.__retry_and_wait(f"API Timeout -> Retry: {retry}", ex, retry, sleep)
             except Exception as ex:
-                retry = self.__retry_and_wait(f"{str(ex)} -> Retry: {retry}", ex, retry)
+                retry = self.__retry_and_wait(f"{str(ex)} -> Retry: {retry}", ex, retry, sleep)
 
             if self.__max_retry_count <= retry:
                 raise NoPaperFoundException(f"Exceeded Max Retry Count @ {paper_id}")
