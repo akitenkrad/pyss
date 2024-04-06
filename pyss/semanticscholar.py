@@ -37,6 +37,15 @@ class Api(object):
 
 
 class SemanticScholar(object):
+    """
+    A class for interacting with the Semantic Scholar API to retrieve paper and author information.
+
+    Args:
+        threshold (float, optional): The threshold value for matching paper titles (default: 0.95).
+        silent (bool, optional): Whether to suppress console output (default: True).
+        max_retry_count (int, optional): The maximum number of retries for API requests (default: 5).
+    """
+
     CACHE_PATH: Path = Path("__cache__/papers.pickle")
 
     def __init__(self, threshold: float = 0.95, silent: bool = True, max_retry_count: int = 5):
@@ -96,6 +105,16 @@ class SemanticScholar(object):
         return retry
 
     def get_paper_id_from_title(self, title: str, api_timeout: float = 5.0) -> str:
+        """
+        Retrieves the paper ID from the given title using the Semantic Scholar API.
+
+        Args:
+            title (str): The title of the paper.
+            api_timeout (float, optional): The timeout value for the API request. Defaults to 5.0.
+
+        Returns:
+            str: The paper ID if found, or an empty string if not found.
+        """
         # remove punctuation
         title = title
         for punc in string.punctuation:
@@ -143,6 +162,35 @@ class SemanticScholar(object):
         return ""
 
     def get_paper_detail(self, paper_id: str, api_timeout: float = 5.0) -> dict[str, Any]:
+        """
+        Retrieves detailed information about a paper from the Semantic Scholar API.
+
+        Args:
+            paper_id (str): The ID of the paper to retrieve information for.
+            api_timeout (float, optional): The timeout value for the API request in seconds. Defaults to 5.0.
+
+        Returns:
+            dict[str, Any]: A dictionary containing the detailed information of the paper.
+            Information in the dictionary includes:
+            - paper_id: The ID of the paper.
+            - url: The URL of the paper.
+            - title: The title of the paper.
+            - abstract: The abstract of the paper.
+            - venue: The venue of the paper.
+            - year: The year of the paper.
+            - reference_count: The reference count of the paper.
+            - citation_count: The citation count of the paper.
+            - influential_citation_count: The influential citation count of the paper.
+            - is_open_access: Whether the paper is open access.
+            - fields_of_study: The fields of study of the paper.
+            - authors: The authors of the paper.
+            - citations: The citations of the paper.
+            - references: The references of the paper.
+
+        Raises:
+            NoPaperFoundException: If the maximum retry count is exceeded and no paper is found.
+
+        """
         retry = 0
         while retry < self.__max_retry_count:
             try:
@@ -264,6 +312,42 @@ class SemanticScholar(object):
         return dict_data
 
     def get_paper_references(self, paper_id: str, api_timeout: float = 5.0) -> list[dict[str, Any]]:
+        """
+        Retrieves the references of a given paper from the Semantic Scholar API.
+
+        Args:
+            paper_id (str): The ID of the paper for which to retrieve the references.
+            api_timeout (float, optional): The timeout value for the API request in seconds. Defaults to 5.0.
+
+        Returns:
+            list[dict[str, Any]]: A list of dictionaries representing the references of the paper.
+            Information in the dictionaries includes:
+            - paper_id: The ID of the paper.
+            - contexts: The contexts of the paper.
+            - intents: The intents of the paper.
+            - contexts_with_intent: The contexts with intent of the paper.
+            - is_influential: Whether the paper is influential.
+            - corpus_id: The corpus ID of the paper.
+            - url: The URL of the paper.
+            - title: The title of the paper.
+            - venue: The venue of the paper.
+            - publication_venue: The publication venue of the paper.
+            - year: The year of the paper.
+            - authors: The authors of the paper.
+            - external_ids: The external IDs of the paper.
+            - abstract: The abstract of the paper.
+            - reference_count: The reference count of the paper.
+            - citation_count: The citation count of the paper.
+            - influential_citation_count: The influential citation count of the paper.
+            - is_open_access: Whether the paper is open access.
+            - open_access_pdf: The URL of the open access PDF of the paper.
+            - fields_of_study: The fields of study of the paper.
+            - s2_fields_of_study: The Semantic Scholar fields of study of the paper.
+            - publication_types: The publication types of the paper.
+            - publication_date: The publication date of the paper.
+            - journal: The journal of the paper.
+        """
+
         retry = 0
         while retry < self.__max_retry_count:
             try:
