@@ -72,6 +72,11 @@ class SemanticScholar(object):
                 res = dic[key]
             elif dic[key] and isinstance(default, datetime):
                 res = parse_date(dic[key])
+            elif isinstance(default, int) and isinstance(dic[key], int):
+                res = dic[key]
+            elif isinstance(default, float) and isinstance(dic[key], float):
+                res = dic[key]
+
         return res
 
     def __retry_and_wait(
