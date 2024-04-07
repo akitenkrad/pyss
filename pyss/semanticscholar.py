@@ -48,7 +48,7 @@ class SemanticScholar(object):
 
     CACHE_PATH: Path = Path("__cache__/papers.pickle")
 
-    def __init__(self, threshold: float = 0.95, silent: bool = True, max_retry_count: int = 5):
+    def __init__(self, threshold: float = 0.95, silent: bool = False, max_retry_count: int = 5):
         self.__api: Api = Api()
         self.__rouge: RougeCalculator = RougeCalculator(
             stopwords=True, stemming=False, word_limit=-1, length_limit=-1, lang="en"
@@ -88,17 +88,17 @@ class SemanticScholar(object):
 
         if isinstance(ex, HTTPError) and ex.errno == -3:
             it = (
-                tqdm(range(60, 0, -1), desc="Error with code -3: Waiting for 1 min")
+                tqdm(range(30, 0, -1), desc="Error with code -3: Waiting for 30 sec")
                 if self.__silent
-                else range(60, 0, -1)
+                else range(30, 0, -1)
             )
             for _ in it:
                 time.sleep(1.0)
         elif isinstance(ex, HTTPError) and ex.code == 429:
             it = (
-                tqdm(range(60, 0, -1), desc="API Limit Exceeded: Waiting for 1 min")
+                tqdm(range(30, 0, -1), desc="API Limit Exceeded: Waiting for 30 sec")
                 if self.__silent
-                else range(60, 0, -1)
+                else range(30, 0, -1)
             )
             for _ in it:
                 time.sleep(1.0)
