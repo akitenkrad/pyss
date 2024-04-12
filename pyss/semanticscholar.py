@@ -93,20 +93,22 @@ class SemanticScholar(object):
 
         if isinstance(ex, HTTPError) and ex.errno == -3:
             it = (
-                tqdm(range(30, 0, -1), desc="Error with code -3: Waiting for 30 sec")
-                if self.__silent
+                tqdm(range(30, 0, -1), desc="Error with code -3: Waiting for 30 sec", leave=False)
+                if not self.__silent
                 else range(30, 0, -1)
             )
             for _ in it:
                 time.sleep(1.0)
         elif isinstance(ex, HTTPError) and ex.code == 429:
             it = (
-                tqdm(range(30, 0, -1), desc="API Limit Exceeded: Waiting for 30 sec")
-                if self.__silent
+                tqdm(range(30, 0, -1), desc="API Limit Exceeded: Waiting for 30 sec", leave=False)
+                if not self.__silent
                 else range(30, 0, -1)
             )
             for _ in it:
                 time.sleep(1.0)
+        elif isinstance(ex, HTTPError):
+            raise ex
         else:
             time.sleep(sleep)
         return retry
