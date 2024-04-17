@@ -7,6 +7,7 @@ import urllib.parse
 import urllib.request
 from dataclasses import dataclass
 from datetime import datetime
+from logging import Logger
 from pathlib import Path
 from typing import Any, Optional, Union
 from urllib.error import HTTPError, URLError
@@ -48,7 +49,9 @@ class SemanticScholar(object):
 
     CACHE_PATH: Path = Path("__cache__/papers.pickle")
 
-    def __init__(self, threshold: float = 0.95, silent: bool = False, max_retry_count: int = 5):
+    def __init__(
+        self, threshold: float = 0.95, silent: bool = False, max_retry_count: int = 5, logger: Optional[Logger] = None
+    ):
         self.__api: Api = Api()
         self.__rouge: RougeCalculator = RougeCalculator(
             stopwords=True, stemming=False, word_limit=-1, length_limit=-1, lang="en"
@@ -56,6 +59,7 @@ class SemanticScholar(object):
         self.__threshold: float = threshold
         self.__silent: bool = silent
         self.__max_retry_count: int = max_retry_count
+        self.__logger = logger
 
     @property
     def threshold(self) -> float:
@@ -89,7 +93,7 @@ class SemanticScholar(object):
             msg = "\n" + msg
 
         if not self.__silent:
-            print(msg)
+            self.__logger.warning(msg)
 
         if isinstance(ex, HTTPError) and ex.errno == -3:
             it = (
