@@ -89,8 +89,6 @@ class SemanticScholar(object):
         retry += 1
         if self.__max_retry_count < retry:
             raise ex
-        if retry == 1:
-            msg = "\n" + msg
 
         if not self.__silent:
             self.__logger.warning(msg)
