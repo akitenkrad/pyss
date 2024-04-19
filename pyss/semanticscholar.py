@@ -23,10 +23,10 @@ class NoPaperFoundException(Exception):
         self.__msg = msg
 
     def __repr__(self) -> str:
-        return f"NO PAPER FUND EXCEPTION: {self.__msg}"
+        return f"NO PAPER FOUND EXCEPTION: {self.__msg}"
 
     def __str__(self) -> str:
-        return f"NO PAPER FUND EXCEPTION: {self.__msg}"
+        return f"NO PAPER FOUND EXCEPTION: {self.__msg}"
 
 
 class ExceedMaxRetryCountException(Exception):
