@@ -29,6 +29,17 @@ class NoPaperFoundException(Exception):
         return f"NO PAPER FUND EXCEPTION: {self.__msg}"
 
 
+class ExceedMaxRetryCountException(Exception):
+    def __init__(self, msg: str):
+        self.__msg = msg
+
+    def __repr__(self) -> str:
+        return f"EXCEED MAX RETRY COUNT: {self.__msg}"
+
+    def __str__(self) -> str:
+        return f"EXCEED MAX RETRY COUNT: {self.__msg}"
+
+
 @dataclass
 class Api(object):
     search_by_title: str = "https://api.semanticscholar.org/graph/v1/paper/search?{QUERY}"
@@ -158,7 +169,10 @@ class SemanticScholar(object):
                 retry = self.__retry_and_wait(f"WARNING: {str(ex)} -> Retry: {retry}", ex, retry, sleep)
 
             if self.__max_retry_count <= retry:
-                raise NoPaperFoundException(f"Exceeded Max Retry Count @ {title}")
+                raise ExceedMaxRetryCountException(f"Exceeded Max Retry Count @ {title}")
+
+        if "data" not in content:
+            raise NoPaperFoundException(f"No Data Found @ {title}")
 
         for item in content["data"]:
             # remove punctuation
@@ -238,7 +252,7 @@ class SemanticScholar(object):
                 retry = self.__retry_and_wait(f"WARNING: {str(ex)} -> Retry: {retry}", ex, retry, sleep)
 
             if self.__max_retry_count <= retry:
-                raise NoPaperFoundException(f"Exceeded Max Retry Count @ {paper_id}")
+                raise ExceedMaxRetryCountException(f"Exceeded Max Retry Count @ {paper_id}")
 
         content = json.loads(response.read().decode("utf-8"))
 
@@ -406,7 +420,7 @@ class SemanticScholar(object):
                 retry = self.__retry_and_wait(f"WARNING: {str(ex)} -> Retry: {retry}", ex, retry, sleep)
 
             if self.__max_retry_count <= retry:
-                raise NoPaperFoundException(f"Exceeded Max Retry Count @ {paper_id}")
+                raise ExceedMaxRetryCountException(f"Exceeded Max Retry Count @ {paper_id}")
 
         data = json.loads(response.read().decode("utf-8"))
 
