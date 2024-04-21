@@ -126,6 +126,29 @@ class SemanticScholar(object):
             time.sleep(sleep)
         return retry
 
+    def is_match_title(self, title: str, ref_title: str) -> bool:
+        """
+        Check if the given title matches the reference title.
+
+        Args:
+            title (str): The title to check.
+            ref_title (str): The reference title to match against.
+
+        Returns:
+            bool: True if the title matches the reference title, False otherwise.
+        """
+        # remove punctuation
+        title = title.lower()
+        ref_title = ref_title.lower()
+        for punc in string.punctuation:
+            title = title.replace(punc, " ")
+            ref_title = ref_title.replace(punc, " ")
+        title = re.sub(r"\s\s+", " ", title, count=1000)
+        ref_title = re.sub(r"\s\s+", " ", ref_title, count=1000)
+
+        score = self.__rouge.rouge_l(summary=title, references=ref_title)
+        return score > self.threshold
+
     def get_paper_id_from_title(self, title: str, api_timeout: float = 5.0, sleep: float = 3.0) -> str:
         """
         Retrieves the paper ID from the given title using the Semantic Scholar API.
@@ -181,8 +204,7 @@ class SemanticScholar(object):
                 ref_str = ref_str.replace(punc, " ")
             ref_str = re.sub(r"\s\s+", " ", ref_str, count=1000)
 
-            score = self.__rouge.rouge_l(summary=title.lower(), references=ref_str)
-            if score > self.threshold:
+            if self.is_match_title(title, ref_str):
                 return item["paperId"].strip()
         return ""
 
