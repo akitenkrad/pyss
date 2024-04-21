@@ -368,10 +368,13 @@ class SemanticScholar(object):
             raise NoAuthorFoundException(f"No Data Found @ {author_name}")
 
         author = None
-        for data in content["data"]:
-            for paper in data["papers"]:
-                if paper["paperId"] == paper_id:
-                    author = data
+        if paper_id:
+            for data in content["data"]:
+                for paper in data["papers"]:
+                    if paper["paperId"] == paper_id:
+                        author = data
+        else:
+            author = content["data"][0]
 
         if author is None:
             raise NoAuthorFoundException(f"No Author Found @ {author_name}")
