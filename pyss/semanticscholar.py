@@ -382,7 +382,7 @@ class SemanticScholar(object):
         dict_data = {}
         dict_data["author_id"] = author["authorId"]
         dict_data["url"] = self.__clean(author, "url", "")
-        dict_data["name"] = self.__clean(author, "name", "")
+        dict_data["author_name"] = self.__clean(author, "name", "")
         dict_data["affiliations"] = self.__clean(author, "affiliations", [])
         dict_data["paper_count"] = self.__clean(author, "paperCount", 0)
         dict_data["citation_count"] = self.__clean(author, "citationCount", 0)
@@ -429,7 +429,7 @@ class SemanticScholar(object):
         dict_data = {}
         dict_data["author_id"] = content["authorId"]
         dict_data["url"] = self.__clean(content, "url", "")
-        dict_data["name"] = self.__clean(content, "name", "")
+        dict_data["author_name"] = self.__clean(content, "name", "")
         dict_data["affiliations"] = self.__clean(content, "affiliations", [])
         dict_data["paper_count"] = self.__clean(content, "paperCount", 0)
         dict_data["citation_count"] = self.__clean(content, "citationCount", 0)
