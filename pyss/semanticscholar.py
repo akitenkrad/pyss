@@ -270,8 +270,32 @@ class SemanticScholar(object):
                     "isOpenAccess",
                     "fieldsOfStudy",
                     "authors",
-                    "citations",
-                    "references",
+                    "citations.paperId",
+                    "citations.title",
+                    "citations.year",
+                    "citations.url",
+                    "citations.abstract",
+                    "citations.authors",
+                    "citations.venue",
+                    "citations.journal",
+                    "citations.fieldsOfStudy",
+                    "citations.publicationDate",
+                    "citations.referenceCount",
+                    "citations.citationCount",
+                    "citations.influentialCitationCount",
+                    "references.paperId",
+                    "references.title",
+                    "references.year",
+                    "references.url",
+                    "references.abstract",
+                    "references.authors",
+                    "references.venue",
+                    "references.journal",
+                    "references.fieldsOfStudy",
+                    "references.publicationDate",
+                    "references.referenceCount",
+                    "references.citationCount",
+                    "references.influentialCitationCount",
                 ]
                 params = f'fields={",".join(fields)}'
                 response = urllib.request.urlopen(
@@ -316,12 +340,50 @@ class SemanticScholar(object):
             else []
         )
         dict_data["citations"] = (
-            [{"paper_id": item["paperId"], "title": item["title"]} for item in content["citations"] if item["paperId"]]
+            [
+                {
+                    "paper_id": item["paperId"],
+                    "title": item["title"],
+                    "year": item["year"],
+                    "url": item["url"],
+                    "abstract": item["abstract"],
+                    "authors": [
+                        {"author_id": author["authorId"], "author_name": ["name"]} for author in item["authors"]
+                    ],
+                    "venue": item["venue"],
+                    "journal": item["journal"],
+                    "fields_of_study": item["fieldsOfStudy"],
+                    "publication_date": item["publicationDate"],
+                    "reference_count": item["referenceCount"],
+                    "citation_count": item["citationCount"],
+                    "influential_citation_count": item["influentialCitationCount"],
+                }
+                for item in content["citations"]
+            ]
             if content["citations"]
             else []
         )
         dict_data["references"] = (
-            [{"paper_id": item["paperId"], "title": item["title"]} for item in content["references"] if item["paperId"]]
+            [
+                {
+                    "paper_id": item["paperId"],
+                    "title": item["title"],
+                    "year": item["year"],
+                    "url": item["url"],
+                    "abstract": item["abstract"],
+                    "authors": [
+                        {"author_id": author["authorId"], "author_name": ["name"]} for author in item["authors"]
+                    ],
+                    "venue": item["venue"],
+                    "journal": item["journal"],
+                    "fields_of_study": item["fieldsOfStudy"],
+                    "publication_date": item["publicationDate"],
+                    "reference_count": item["referenceCount"],
+                    "citation_count": item["citationCount"],
+                    "influential_citation_count": item["influentialCitationCount"],
+                }
+                for item in content["references"]
+            ]
             if content["references"]
             else []
         )
