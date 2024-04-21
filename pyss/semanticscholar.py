@@ -406,7 +406,7 @@ class SemanticScholar(object):
                     "papers",
                 ]
                 params = f'fields={",".join(fields)}'
-                query = author_name.lower().replace(" ", "+")
+                query = "+".join([urllib.parse.quote(s) for s in author_name.lower().split()])
                 url = self.__api.search_by_author_name.format(QUERY=query, PARAMS=params)
                 response = urllib.request.urlopen(url, timeout=api_timeout)
                 time.sleep(sleep)
