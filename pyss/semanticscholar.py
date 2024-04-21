@@ -18,6 +18,17 @@ from sumeval.metrics.rouge import RougeCalculator
 from tqdm import tqdm
 
 
+class NoAuthorFoundException(Exception):
+    def __init__(self, msg: str):
+        self.__msg = msg
+
+    def __repr__(self) -> str:
+        return f"NO AUTHOR FOUND EXCEPTION: {self.__msg}"
+
+    def __str__(self) -> str:
+        return f"NO AUTHOR FOUND EXCEPTION: {self.__msg}"
+
+
 class NoPaperFoundException(Exception):
     def __init__(self, msg: str):
         self.__msg = msg
@@ -45,7 +56,7 @@ class Api(object):
     search_by_title: str = "https://api.semanticscholar.org/graph/v1/paper/search?{QUERY}"
     search_by_id: str = "https://api.semanticscholar.org/graph/v1/paper/{PAPER_ID}?{PARAMS}"
     search_by_author_id: str = "https://api.semanticscholar.org/graph/v1/author/{AUTHOR_ID}?{PARAMS}"
-    search_by_author_name: str = "https://api.semanticscholar.org/graph/v1/author/search?query={QUERY}&fields={PARAMS}"
+    search_by_author_name: str = "https://api.semanticscholar.org/graph/v1/author/search?query={QUERY}&{PARAMS}"
     search_references: str = "https://api.semanticscholar.org/graph/v1/paper/{PAPER_ID}/references?{PARAMS}"
 
 
@@ -106,7 +117,7 @@ class SemanticScholar(object):
         if self.__max_retry_count < retry:
             raise ex
 
-        if not self.__silent:
+        if not self.__silent and self.__logger is not None:
             self.__logger.warning(msg)
 
         if isinstance(ex, HTTPError) and ex.errno == -3:
@@ -317,7 +328,7 @@ class SemanticScholar(object):
         return dict_data
 
     def get_author_detail_by_name(
-        self, author_name: str, api_timeout: float = 5.0, sleep: float = 3.0
+        self, author_name: str, paper_id: str, api_timeout: float = 5.0, sleep: float = 3.0
     ) -> dict[str, Any]:
         retry = 0
         while retry < self.__max_retry_count:
@@ -333,10 +344,9 @@ class SemanticScholar(object):
                     "papers",
                 ]
                 params = f'fields={",".join(fields)}'
-                query = urllib.parse.quote(author_name.lower().replace(" ", "+"))
-                response = urllib.request.urlopen(
-                    self.__api.search_by_author_name.format(QUERY=query, PARAMS=params), timeout=api_timeout
-                )
+                query = author_name.lower().replace(" ", "+")
+                url = self.__api.search_by_author_name.format(QUERY=query, PARAMS=params)
+                response = urllib.request.urlopen(url, timeout=api_timeout)
                 time.sleep(sleep)
                 break
 
@@ -354,15 +364,27 @@ class SemanticScholar(object):
 
         content = json.loads(response.read().decode("utf-8"))
 
+        if "data" not in content:
+            raise NoAuthorFoundException(f"No Data Found @ {author_name}")
+
+        author = None
+        for data in content["data"]:
+            for paper in data["papers"]:
+                if paper["paperId"] == paper_id:
+                    author = data
+
+        if author is None:
+            raise NoAuthorFoundException(f"No Author Found @ {author_name}")
+
         dict_data = {}
-        dict_data["author_id"] = content["authorId"]
-        dict_data["url"] = self.__clean(content, "url", "")
-        dict_data["name"] = self.__clean(content, "name", "")
-        dict_data["affiliations"] = self.__clean(content, "affiliations", [])
-        dict_data["paper_count"] = self.__clean(content, "paperCount", 0)
-        dict_data["citation_count"] = self.__clean(content, "citationCount", 0)
-        dict_data["hindex"] = self.__clean(content, "hIndex", 0)
-        dict_data["papers"] = content["papers"]
+        dict_data["author_id"] = author["authorId"]
+        dict_data["url"] = self.__clean(author, "url", "")
+        dict_data["name"] = self.__clean(author, "name", "")
+        dict_data["affiliations"] = self.__clean(author, "affiliations", [])
+        dict_data["paper_count"] = self.__clean(author, "paperCount", 0)
+        dict_data["citation_count"] = self.__clean(author, "citationCount", 0)
+        dict_data["hindex"] = self.__clean(author, "hIndex", 0)
+        dict_data["papers"] = author.get("papers", [])
 
         return dict_data
 
