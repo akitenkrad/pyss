@@ -45,6 +45,7 @@ class Api(object):
     search_by_title: str = "https://api.semanticscholar.org/graph/v1/paper/search?{QUERY}"
     search_by_id: str = "https://api.semanticscholar.org/graph/v1/paper/{PAPER_ID}?{PARAMS}"
     search_by_author_id: str = "https://api.semanticscholar.org/graph/v1/author/{AUTHOR_ID}?{PARAMS}"
+    search_by_author_name: str = "https://api.semanticscholar.org/graph/v1/author/search?query={QUERY}&fields={PARAMS}"
     search_references: str = "https://api.semanticscholar.org/graph/v1/paper/{PAPER_ID}/references?{PARAMS}"
 
 
@@ -313,6 +314,56 @@ class SemanticScholar(object):
             if content["references"]
             else []
         )
+        return dict_data
+
+    def get_author_detail_by_name(
+        self, author_name: str, api_timeout: float = 5.0, sleep: float = 3.0
+    ) -> dict[str, Any]:
+        retry = 0
+        while retry < self.__max_retry_count:
+            try:
+                fields = [
+                    "authorId",
+                    "url",
+                    "name",
+                    "affiliations",
+                    "paperCount",
+                    "citationCount",
+                    "hIndex",
+                    "papers",
+                ]
+                params = f'fields={",".join(fields)}'
+                query = urllib.parse.quote(author_name.lower().replace(" ", "+"))
+                response = urllib.request.urlopen(
+                    self.__api.search_by_author_name.format(QUERY=query, PARAMS=params), timeout=api_timeout
+                )
+                time.sleep(sleep)
+                break
+
+            except HTTPError as ex:
+                retry = self.__retry_and_wait(f"WARNING: {str(ex)} -> Retry: {retry}", ex, retry, sleep)
+            except URLError as ex:
+                retry = self.__retry_and_wait(f"WARNING: {str(ex)} -> Retry: {retry}", ex, retry, sleep)
+            except socket.timeout as ex:
+                retry = self.__retry_and_wait(f"WARNING: API Timeout -> Retry: {retry}", ex, retry, sleep)
+            except Exception as ex:
+                retry = self.__retry_and_wait(f"WARNING: {str(ex)} -> Retry: {retry}", ex, retry, sleep)
+
+            if self.__max_retry_count <= retry:
+                raise Exception(f"Exceeded Max Retry Count @ {author_name}")
+
+        content = json.loads(response.read().decode("utf-8"))
+
+        dict_data = {}
+        dict_data["author_id"] = content["authorId"]
+        dict_data["url"] = self.__clean(content, "url", "")
+        dict_data["name"] = self.__clean(content, "name", "")
+        dict_data["affiliations"] = self.__clean(content, "affiliations", [])
+        dict_data["paper_count"] = self.__clean(content, "paperCount", 0)
+        dict_data["citation_count"] = self.__clean(content, "citationCount", 0)
+        dict_data["hindex"] = self.__clean(content, "hIndex", 0)
+        dict_data["papers"] = content["papers"]
+
         return dict_data
 
     def get_author_detail(self, author_id: str, api_timeout: float = 5.0, sleep: float = 3.0) -> dict[str, Any]:
