@@ -76,6 +76,10 @@ class SemanticScholar(object):
     def threshold(self) -> float:
         return self.__threshold
 
+    @property
+    def max_retry_count(self) -> int:
+        return self.__max_retry_count
+
     def __clean(self, dic: dict, key: str, default: Any) -> Any:
         res = default
         if key in dic:
