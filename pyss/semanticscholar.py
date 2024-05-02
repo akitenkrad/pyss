@@ -348,7 +348,7 @@ class SemanticScholar(object):
                     "url": item["url"],
                     "abstract": item["abstract"],
                     "authors": [
-                        {"author_id": author["authorId"], "author_name": ["name"]} for author in item["authors"]
+                        {"author_id": author["authorId"], "author_name": author["name"]} for author in item["authors"]
                     ],
                     "venue": item["venue"],
                     "journal": item["journal"],
@@ -372,7 +372,7 @@ class SemanticScholar(object):
                     "url": item["url"],
                     "abstract": item["abstract"],
                     "authors": [
-                        {"author_id": author["authorId"], "author_name": ["name"]} for author in item["authors"]
+                        {"author_id": author["authorId"], "author_name": author["name"]} for author in item["authors"]
                     ],
                     "venue": item["venue"],
                     "journal": item["journal"],
