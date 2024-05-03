@@ -1,3 +1,3 @@
-from pyss.semanticscholar import ExceedMaxRetryCountException, NoPaperFoundException, SemanticScholar
+from pyss.semanticscholar import Author, ExceedMaxRetryCountException, NoPaperFoundException, Paper, SemanticScholar
 
-__all__ = ["SemanticScholar", "ExceedMaxRetryCountException", "NoPaperFoundException"]
+__all__ = ["SemanticScholar", "Author", "Paper", "ExceedMaxRetryCountException", "NoPaperFoundException"]
