@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import json
 import re
 import socket
@@ -5,14 +7,13 @@ import string
 import time
 import urllib.parse
 import urllib.request
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from logging import Logger
 from pathlib import Path
 from typing import Any, Optional, Union
 from urllib.error import HTTPError, URLError
 
-from attrdict import AttrDict
 from dateutil.parser import parse as parse_date
 from sumeval.metrics.rouge import RougeCalculator
 from tqdm import tqdm
@@ -58,6 +59,85 @@ class Api(object):
     search_by_author_id: str = "https://api.semanticscholar.org/graph/v1/author/{AUTHOR_ID}?{PARAMS}"
     search_by_author_name: str = "https://api.semanticscholar.org/graph/v1/author/search?query={QUERY}&{PARAMS}"
     search_references: str = "https://api.semanticscholar.org/graph/v1/paper/{PAPER_ID}/references?{PARAMS}"
+
+
+@dataclass()
+class Author(object):
+    author_id: str
+    author_name: str
+    url: str
+    affiliations: list[str]
+    paper_count: int
+    citation_count: int
+    hindex: int
+
+    def __eq__(self, other: object) -> bool:
+        return self.author_id == other.author_id
+
+    def __hash__(self) -> int:
+        return hash(self.author_id)
+
+    def __lt__(self, other: Author) -> bool:
+        return self.author_id < other.author_id
+
+    def exact_match(self, other: Author):
+        return (
+            self.author_id == other.author_id
+            and self.author_name == other.author_name
+            and self.affiliations == other.affiliations
+            and self.paper_count == other.paper_count
+            and self.citation_count == other.citation_count
+            and self.hindex == other.hindex
+        )
+
+
+@dataclass
+class Paper(object):
+    paper_id: str
+    title: str
+    abstract: str
+    authors: list[Author]
+    url: str
+    venue: str
+    publication_date: datetime
+    reference_count: int
+    citation_count: int
+    influential_citation_count: int
+    is_open_access: bool
+    fields_of_study: list[str]
+    citations: list[Paper]
+    references: list[Paper]
+
+    @property
+    def year(self) -> int:
+        return self.publication_date.year
+
+    def __eq__(self, other: object) -> bool:
+        return self.paper_id == other.paper_id
+
+    def __hash__(self) -> int:
+        return hash(self.ss_id)
+
+    def __lt__(self, other: Paper) -> bool:
+        return self.paper_id < other.paper_id
+
+    def exact_match(self, other: Paper):
+        return (
+            self.title == other.title
+            and self.abstract == other.abstract
+            and self.venue == other.venue
+            and self.year == other.year
+            and self.url == other.url
+            and self.publication_date == other.publication_date
+            and self.reference_count == other.reference_count
+            and self.citation_count == other.citation_count
+            and self.influential_citation_count == other.influential_citation_count
+            and self.is_open_access == other.is_open_access
+            and self.fields_of_study == other.fields_of_study
+            and all([a.exact_match(b) for a, b in zip(sorted(self.authors), sorted(other.authors))])
+            and all([c.exact_match(d) for c, d in zip(sorted(self.citations), sorted(other.citations))])
+            and all([r.exact_match(s) for r, s in zip(sorted(self.references), sorted(other.references))])
+        )
 
 
 class SemanticScholar(object):
@@ -224,7 +304,7 @@ class SemanticScholar(object):
                 return item["paperId"].strip()
         return ""
 
-    def get_paper_detail(self, paper_id: str, api_timeout: float = 5.0, sleep: float = 3.0) -> dict[str, Any]:
+    def get_paper_detail(self, paper_id: str, api_timeout: float = 5.0, sleep: float = 3.0) -> Paper:
         """
         Retrieves detailed information about a paper from the Semantic Scholar API.
 
@@ -269,7 +349,14 @@ class SemanticScholar(object):
                     "influentialCitationCount",
                     "isOpenAccess",
                     "fieldsOfStudy",
-                    "authors",
+                    "publicationDate",
+                    "authors.authorId",
+                    "authors.name",
+                    "authors.url",
+                    "authors.affiliations",
+                    "authors.hIndex",
+                    "authors.paperCount",
+                    "authors.citationCount",
                     "citations.paperId",
                     "citations.title",
                     "citations.year",
@@ -318,80 +405,97 @@ class SemanticScholar(object):
 
         content = json.loads(response.read().decode("utf-8"))
 
-        dict_data = {}
-        dict_data["paper_id"] = content["paperId"]
-        dict_data["url"] = self.__clean(content, "url", "")
-        dict_data["title"] = self.__clean(content, "title", "")
-        dict_data["abstract"] = self.__clean(content, "abstract", "")
-        dict_data["venue"] = self.__clean(content, "venue", "")
-        dict_data["year"] = self.__clean(content, "year", 0)
-        dict_data["reference_count"] = self.__clean(content, "referenceCount", 0)
-        dict_data["citation_count"] = self.__clean(content, "citationCount", 0)
-        dict_data["influential_citation_count"] = self.__clean(content, "influentialCitationCount", 0)
-        dict_data["is_open_access"] = self.__clean(content, "isOpenAccess", False)
-        dict_data["fields_of_study"] = self.__clean(content, "fieldsOfStudy", [])
-        dict_data["authors"] = (
-            [
-                {"author_id": item["authorId"], "author_name": item["name"]}
-                for item in content["authors"]
-                if item["authorId"]
-            ]
-            if content["authors"]
-            else []
-        )
-        dict_data["citations"] = (
-            [
-                {
-                    "paper_id": item["paperId"],
-                    "title": item["title"],
-                    "year": item["year"],
-                    "url": item["url"],
-                    "abstract": item["abstract"],
-                    "authors": [
-                        {"author_id": author["authorId"], "author_name": author["name"]} for author in item["authors"]
+        paper = Paper(
+            paper_id=self.__clean(content, "paperId", ""),
+            title=self.__clean(content, "title", ""),
+            abstract=self.__clean(content, "abstract", ""),
+            authors=[
+                Author(
+                    author_id=self.__clean(item, "authorId", ""),
+                    author_name=self.__clean(item, "name", ""),
+                    url=self.__clean(item, "url", ""),
+                    affiliations=self.__clean(item, "affiliations", []),
+                    paper_count=self.__clean(item, "paperCount", 0),
+                    citation_count=self.__clean(item, "citationCount", 0),
+                    hindex=self.__clean(item, "hIndex", 0),
+                )
+                for item in self.__clean(content, "authors", [])
+            ],
+            venue=self.__clean(content, "venue", ""),
+            url=self.__clean(content, "url", ""),
+            publication_date=self.__clean(content, "publicationDate", datetime(1900, 1, 1)),
+            reference_count=self.__clean(content, "referenceCount", 0),
+            citation_count=self.__clean(content, "citationCount", 0),
+            influential_citation_count=self.__clean(content, "influentialCitationCount", 0),
+            is_open_access=self.__clean(content, "isOpenAccess", False),
+            fields_of_study=self.__clean(content, "fieldsOfStudy", []),
+            citations=[
+                Paper(
+                    paper_id=self.__clean(item, "paperId", ""),
+                    title=self.__clean(item, "title", ""),
+                    abstract=self.__clean(item, "abstract", ""),
+                    authors=[
+                        Author(
+                            author_id=self.__clean(author_item, "authorId", ""),
+                            author_name=self.__clean(author_item, "name", ""),
+                            url=self.__clean(author_item, "url", ""),
+                            affiliations=self.__clean(author_item, "affiliations", []),
+                            paper_count=self.__clean(author_item, "paperCount", 0),
+                            citation_count=self.__clean(author_item, "citationCount", 0),
+                            hindex=self.__clean(author_item, "hIndex", 0),
+                        )
+                        for author_item in self.__clean(item, "authors", [])
                     ],
-                    "venue": item["venue"],
-                    "journal": item["journal"],
-                    "fields_of_study": item["fieldsOfStudy"],
-                    "publication_date": item["publicationDate"],
-                    "reference_count": item["referenceCount"],
-                    "citation_count": item["citationCount"],
-                    "influential_citation_count": item["influentialCitationCount"],
-                }
-                for item in content["citations"]
-            ]
-            if content["citations"]
-            else []
-        )
-        dict_data["references"] = (
-            [
-                {
-                    "paper_id": item["paperId"],
-                    "title": item["title"],
-                    "year": item["year"],
-                    "url": item["url"],
-                    "abstract": item["abstract"],
-                    "authors": [
-                        {"author_id": author["authorId"], "author_name": author["name"]} for author in item["authors"]
+                    venue=self.__clean(item, "venue", ""),
+                    url=self.__clean(item, "url", ""),
+                    publication_date=self.__clean(item, "publicationDate", datetime(1900, 1, 1)),
+                    reference_count=self.__clean(item, "referenceCount", 0),
+                    citation_count=self.__clean(item, "citationCount", 0),
+                    influential_citation_count=self.__clean(item, "influentialCitationCount", 0),
+                    is_open_access=self.__clean(item, "isOpenAccess", False),
+                    fields_of_study=self.__clean(item, "fieldsOfStudy", []),
+                    citations=[],
+                    references=[],
+                )
+                for item in self.__clean(content, "citations", [])
+            ],
+            references=[
+                Paper(
+                    paper_id=self.__clean(item, "paperId", ""),
+                    title=self.__clean(item, "title", ""),
+                    abstract=self.__clean(item, "abstract", ""),
+                    authors=[
+                        Author(
+                            author_id=self.__clean(author_item, "authorId", ""),
+                            author_name=self.__clean(author_item, "name", ""),
+                            url=self.__clean(author_item, "url", ""),
+                            affiliations=self.__clean(author_item, "affiliations", []),
+                            paper_count=self.__clean(author_item, "paperCount", 0),
+                            citation_count=self.__clean(author_item, "citationCount", 0),
+                            hindex=self.__clean(author_item, "hIndex", 0),
+                        )
+                        for author_item in self.__clean(item, "authors", [])
                     ],
-                    "venue": item["venue"],
-                    "journal": item["journal"],
-                    "fields_of_study": item["fieldsOfStudy"],
-                    "publication_date": item["publicationDate"],
-                    "reference_count": item["referenceCount"],
-                    "citation_count": item["citationCount"],
-                    "influential_citation_count": item["influentialCitationCount"],
-                }
-                for item in content["references"]
-            ]
-            if content["references"]
-            else []
+                    venue=self.__clean(item, "venue", ""),
+                    url=self.__clean(item, "url", ""),
+                    publication_date=self.__clean(item, "publicationDate", datetime(1900, 1, 1)),
+                    reference_count=self.__clean(item, "referenceCount", 0),
+                    citation_count=self.__clean(item, "citationCount", 0),
+                    influential_citation_count=self.__clean(item, "influentialCitationCount", 0),
+                    is_open_access=self.__clean(item, "isOpenAccess", False),
+                    fields_of_study=self.__clean(item, "fieldsOfStudy", []),
+                    citations=[],
+                    references=[],
+                )
+                for item in self.__clean(content, "references", [])
+            ],
         )
-        return dict_data
+
+        return paper
 
     def get_author_detail_by_name(
         self, author_name: str, paper_id: str, api_timeout: float = 5.0, sleep: float = 3.0
-    ) -> dict[str, Any]:
+    ) -> Author:
         retry = 0
         while retry < self.__max_retry_count:
             try:
@@ -403,7 +507,6 @@ class SemanticScholar(object):
                     "paperCount",
                     "citationCount",
                     "hIndex",
-                    "papers",
                 ]
                 params = f'fields={",".join(fields)}'
                 query = "+".join([urllib.parse.quote(s) for s in author_name.lower().split()])
@@ -443,19 +546,18 @@ class SemanticScholar(object):
         if author is None:
             raise NoAuthorFoundException(f"No Author Found @ {author_name}")
 
-        dict_data = {}
-        dict_data["author_id"] = author["authorId"]
-        dict_data["url"] = self.__clean(author, "url", "")
-        dict_data["author_name"] = self.__clean(author, "name", "")
-        dict_data["affiliations"] = self.__clean(author, "affiliations", [])
-        dict_data["paper_count"] = self.__clean(author, "paperCount", 0)
-        dict_data["citation_count"] = self.__clean(author, "citationCount", 0)
-        dict_data["hindex"] = self.__clean(author, "hIndex", 0)
-        dict_data["papers"] = author.get("papers", [])
+        author = Author(
+            author_id=self.__clean(author, "authorId", ""),
+            author_name=self.__clean(author, "name", ""),
+            url=self.__clean(author, "url", ""),
+            affiliations=self.__clean(author, "affiliations", []),
+            paper_count=self.__clean(author, "paperCount", 0),
+            citation_count=self.__clean(author, "citationCount", 0),
+            hindex=self.__clean(author, "hIndex", 0),
+        )
+        return author
 
-        return dict_data
-
-    def get_author_detail(self, author_id: str, api_timeout: float = 5.0, sleep: float = 3.0) -> dict[str, Any]:
+    def get_author_detail(self, author_id: str, api_timeout: float = 5.0, sleep: float = 3.0) -> Author:
         retry = 0
         while retry < self.__max_retry_count:
             try:
@@ -467,7 +569,6 @@ class SemanticScholar(object):
                     "paperCount",
                     "citationCount",
                     "hIndex",
-                    "papers",
                 ]
                 params = f'fields={",".join(fields)}'
                 response = urllib.request.urlopen(
@@ -490,143 +591,13 @@ class SemanticScholar(object):
 
         content = json.loads(response.read().decode("utf-8"))
 
-        dict_data = {}
-        dict_data["author_id"] = content["authorId"]
-        dict_data["url"] = self.__clean(content, "url", "")
-        dict_data["author_name"] = self.__clean(content, "name", "")
-        dict_data["affiliations"] = self.__clean(content, "affiliations", [])
-        dict_data["paper_count"] = self.__clean(content, "paperCount", 0)
-        dict_data["citation_count"] = self.__clean(content, "citationCount", 0)
-        dict_data["hindex"] = self.__clean(content, "hIndex", 0)
-        dict_data["papers"] = content["papers"]
-
-        return dict_data
-
-    def get_paper_references(self, paper_id: str, api_timeout: float = 5.0, sleep: float = 3.0) -> list[dict[str, Any]]:
-        """
-        Retrieves the references of a given paper from the Semantic Scholar API.
-
-        Args:
-            paper_id (str): The ID of the paper for which to retrieve the references.
-            api_timeout (float, optional): The timeout value for the API request in seconds. Defaults to 5.0.
-
-        Returns:
-            list[dict[str, Any]]: A list of dictionaries representing the references of the paper.
-            Information in the dictionaries includes:
-            - paper_id: The ID of the paper.
-            - contexts: The contexts of the paper.
-            - intents: The intents of the paper.
-            - contexts_with_intent: The contexts with intent of the paper.
-            - is_influential: Whether the paper is influential.
-            - corpus_id: The corpus ID of the paper.
-            - url: The URL of the paper.
-            - title: The title of the paper.
-            - venue: The venue of the paper.
-            - publication_venue: The publication venue of the paper.
-            - year: The year of the paper.
-            - authors: The authors of the paper.
-            - external_ids: The external IDs of the paper.
-            - abstract: The abstract of the paper.
-            - reference_count: The reference count of the paper.
-            - citation_count: The citation count of the paper.
-            - influential_citation_count: The influential citation count of the paper.
-            - is_open_access: Whether the paper is open access.
-            - open_access_pdf: The URL of the open access PDF of the paper.
-            - fields_of_study: The fields of study of the paper.
-            - s2_fields_of_study: The Semantic Scholar fields of study of the paper.
-            - publication_types: The publication types of the paper.
-            - publication_date: The publication date of the paper.
-            - journal: The journal of the paper.
-        """
-
-        retry = 0
-        while retry < self.__max_retry_count:
-            try:
-                fields = [
-                    "contexts",
-                    "intents",
-                    "contextsWithIntent",
-                    "isInfluential",
-                    "paperId",
-                    "corpusId",
-                    "url",
-                    "title",
-                    "venue",
-                    "publicationVenue",
-                    "year",
-                    "authors",
-                    "externalIds",
-                    "abstract",
-                    "referenceCount",
-                    "citationCount",
-                    "influentialCitationCount",
-                    "isOpenAccess",
-                    "openAccessPdf",
-                    "fieldsOfStudy",
-                    "s2FieldsOfStudy",
-                    "publicationTypes",
-                    "publicationDate",
-                    "journal",
-                    "citationStyles",
-                ]
-                params = f'fields={",".join(fields)}'
-                response = urllib.request.urlopen(
-                    self.__api.search_references.format(PAPER_ID=paper_id, PARAMS=params), timeout=api_timeout
-                )
-                time.sleep(sleep)
-                break
-
-            except HTTPError as ex:
-                retry = self.__retry_and_wait(f"WARNING: {str(ex)} -> Retry: {retry}", ex, retry, sleep)
-            except URLError as ex:
-                retry = self.__retry_and_wait(f"WARNING: {str(ex)} -> Retry: {retry}", ex, retry, sleep)
-            except socket.timeout as ex:
-                retry = self.__retry_and_wait(f"WARNING: API Timeout -> Retry: {retry}", ex, retry, sleep)
-            except Exception as ex:
-                retry = self.__retry_and_wait(f"WARNING: {str(ex)} -> Retry: {retry}", ex, retry, sleep)
-
-            if self.__max_retry_count <= retry:
-                raise ExceedMaxRetryCountException(f"Exceeded Max Retry Count @ {paper_id}")
-
-        data = json.loads(response.read().decode("utf-8"))
-
-        references = []
-        for p in data["data"]:
-            content = p["citedPaper"]
-            dict_data = {}
-            dict_data["paper_id"] = self.__clean(content, "paperId", "")
-
-            if dict_data["paper_id"] == "":
-                continue
-
-            dict_data["contexts"] = self.__clean(content, "contexts", [])
-            dict_data["intents"] = self.__clean(content, "intents", "")
-            dict_data["contexts_with_intent"] = self.__clean(content, "contextsWithIntent", "")
-            dict_data["is_influential"] = self.__clean(content, "isInfluential", False)
-            dict_data["corpus_id"] = self.__clean(content, "corpusId", "")
-            dict_data["url"] = self.__clean(content, "url", "")
-            dict_data["title"] = self.__clean(content, "title", "")
-            dict_data["venue"] = self.__clean(content, "venue", "")
-            dict_data["publication_venue"] = self.__clean(content, "publicationVenue", "")
-            dict_data["year"] = self.__clean(content, "year", 0)
-            dict_data["authors"] = [
-                {"author_id": item["authorId"], "author_name": item["name"]}
-                for item in self.__clean(content, "authors", [])
-            ]
-            dict_data["external_ids"] = self.__clean(content, "externalIds", {})
-            dict_data["abstract"] = self.__clean(content, "abstract", "")
-            dict_data["reference_count"] = self.__clean(content, "referenceCount", 0)
-            dict_data["citation_count"] = self.__clean(content, "citationCount", 0)
-            dict_data["influential_citation_count"] = self.__clean(content, "influentialCitationCount", 0)
-            dict_data["is_open_access"] = self.__clean(content, "isOpenAccess", False)
-            dict_data["open_access_pdf"] = self.__clean(content, "openAccessPdf", {}).get("url", "")
-            dict_data["fields_of_study"] = self.__clean(content, "fieldsOfStudy", [])
-            dict_data["s2_fields_of_study"] = self.__clean(content, "s2FieldsOfStudy", [])
-            dict_data["publication_types"] = self.__clean(content, "publicationTypes", [])
-            dict_data["publication_date"] = self.__clean(content, "publicationDate", "")
-            if dict_data["publication_date"]:
-                dict_data["publication_date"] = parse_date(dict_data["publication_date"])
-            dict_data["journal"] = self.__clean(content, "journal", "")
-            references.append(dict_data)
-
-        return references
+        author = Author(
+            author_id=self.__clean(content, "authorId", ""),
+            author_name=self.__clean(content, "name", ""),
+            url=self.__clean(content, "url", ""),
+            affiliations=self.__clean(content, "affiliations", []),
+            paper_count=self.__clean(content, "paperCount", 0),
+            citation_count=self.__clean(content, "citationCount", 0),
+            hindex=self.__clean(content, "hIndex", 0),
+        )
+        return author
