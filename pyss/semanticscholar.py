@@ -99,7 +99,9 @@ class Paper(object):
     authors: list[Author]
     url: str
     venue: str
+    publication_venue: {}
     publication_date: datetime
+    publication_types: list[str]
     reference_count: int
     citation_count: int
     influential_citation_count: int
@@ -352,7 +354,7 @@ class SemanticScholar(object):
                     "fieldsOfStudy",
                     "externalIds",
                     "publicationVenue",
-                    "publicationType",
+                    "publicationTypes",
                     "publicationDate",
                     "authors.authorId",
                     "authors.name",
@@ -428,6 +430,8 @@ class SemanticScholar(object):
             venue=self.__clean(content, "venue", ""),
             url=self.__clean(content, "url", ""),
             publication_date=self.__clean(content, "publicationDate", datetime(1900, 1, 1)),
+            publication_venue=self.__clean(content, "publicationVenue", {}),
+            publication_types=self.__clean(content, "publicationTypes", []),
             reference_count=self.__clean(content, "referenceCount", 0),
             citation_count=self.__clean(content, "citationCount", 0),
             influential_citation_count=self.__clean(content, "influentialCitationCount", 0),
@@ -493,7 +497,7 @@ class SemanticScholar(object):
                 )
                 for item in self.__clean(content, "references", [])
             ],
-            external_ids=__clean(content, "externalIds", {})
+            external_ids=self.__clean(content, "externalIds", {})
         )
 
         return paper
