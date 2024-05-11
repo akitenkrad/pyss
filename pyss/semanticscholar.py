@@ -444,7 +444,7 @@ class SemanticScholar(object):
             citation_count=self.__clean(content, "citationCount", 0),
             influential_citation_count=self.__clean(content, "influentialCitationCount", 0),
             is_open_access=self.__clean(content, "isOpenAccess", False),
-            open_access_pdf=self.__clean(content, "openAccessPdf", {}).get("url", "")
+            open_access_pdf=self.__clean(content, "openAccessPdf", {}).get("url", ""),
             fields_of_study=self.__clean(content, "fieldsOfStudy", []),
             citations=[
                 Paper(
@@ -472,7 +472,7 @@ class SemanticScholar(object):
                     citation_count=self.__clean(item, "citationCount", 0),
                     influential_citation_count=self.__clean(item, "influentialCitationCount", 0),
                     is_open_access=self.__clean(item, "isOpenAccess", False),
-                    open_access_pdf=self.__clean(content, "openAccessPdf", {}).get("url", "")
+                    open_access_pdf=self.__clean(content, "openAccessPdf", {}).get("url", ""),
                     fields_of_study=self.__clean(item, "fieldsOfStudy", []),
                     external_ids=self.__clean(item, "externalIds", []),
                     citations=[],
@@ -506,7 +506,7 @@ class SemanticScholar(object):
                     citation_count=self.__clean(item, "citationCount", 0),
                     influential_citation_count=self.__clean(item, "influentialCitationCount", 0),
                     is_open_access=self.__clean(item, "isOpenAccess", False),
-                    open_access_pdf=self.__clean(content, "openAccessPdf", {}).get("url", "")
+                    open_access_pdf=self.__clean(content, "openAccessPdf", {}).get("url", ""),
                     fields_of_study=self.__clean(item, "fieldsOfStudy", []),
                     external_ids=self.__clean(item, "externalIds", []),
                     citations=[],
