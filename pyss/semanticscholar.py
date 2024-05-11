@@ -107,6 +107,7 @@ class Paper(object):
     fields_of_study: list[str]
     citations: list[Paper]
     references: list[Paper]
+    external_ids: list[str]
 
     @property
     def year(self) -> int:
@@ -349,6 +350,9 @@ class SemanticScholar(object):
                     "influentialCitationCount",
                     "isOpenAccess",
                     "fieldsOfStudy",
+                    "externalIds",
+                    "publicationVenue",
+                    "publicationType",
                     "publicationDate",
                     "authors.authorId",
                     "authors.name",
@@ -489,6 +493,7 @@ class SemanticScholar(object):
                 )
                 for item in self.__clean(content, "references", [])
             ],
+            external_ids=__clean(content, "externalIds", {})
         )
 
         return paper
