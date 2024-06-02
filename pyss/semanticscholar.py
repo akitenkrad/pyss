@@ -59,6 +59,16 @@ class Api(object):
     search_by_author_id: str = "https://api.semanticscholar.org/graph/v1/author/{AUTHOR_ID}?{PARAMS}"
     search_by_author_name: str = "https://api.semanticscholar.org/graph/v1/author/search?query={QUERY}&{PARAMS}"
     search_references: str = "https://api.semanticscholar.org/graph/v1/paper/{PAPER_ID}/references?{PARAMS}"
+    api_key: str = ""
+
+    def urlopen(self, url: str, timeout: int = 30, **kwargs) -> urllib.request._UrlopenRet:
+        url = url.format(**kwargs)
+        if self.api_key:
+            opener = urllib.request.build_opener()
+            opener.addheaders = [("X-API-Key", self.api_key)]
+            return opener.open(url, timeout=timeout)
+        else:
+            return urllib.request.urlopen(url, timeout=timeout)
 
 
 @dataclass()
@@ -99,7 +109,7 @@ class Paper(object):
     authors: list[Author]
     url: str
     venue: str
-    publication_venue: {}
+    publication_venue: dict
     publication_date: datetime
     publication_types: list[str]
     reference_count: int
@@ -157,9 +167,14 @@ class SemanticScholar(object):
     CACHE_PATH: Path = Path("__cache__/papers.pickle")
 
     def __init__(
-        self, threshold: float = 0.95, silent: bool = False, max_retry_count: int = 5, logger: Optional[Logger] = None
+        self,
+        api_key: str = "",
+        threshold: float = 0.95,
+        silent: bool = False,
+        max_retry_count: int = 5,
+        logger: Optional[Logger] = None,
     ):
-        self.__api: Api = Api()
+        self.__api: Api = Api(api_key=api_key)
         self.__rouge: RougeCalculator = RougeCalculator(
             stopwords=True, stemming=False, word_limit=-1, length_limit=-1, lang="en"
         )
@@ -167,6 +182,7 @@ class SemanticScholar(object):
         self.__silent: bool = silent
         self.__max_retry_count: int = max_retry_count
         self.__logger = logger
+        self.__wait_time: int = 30 if api_key == "" else 1
 
     @property
     def threshold(self) -> float:
@@ -206,17 +222,25 @@ class SemanticScholar(object):
 
         if isinstance(ex, HTTPError) and ex.errno == -3:
             it = (
-                tqdm(range(30, 0, -1), desc="Error with code -3: Waiting for 30 sec", leave=False)
+                tqdm(
+                    range(self.__wait_time, 0, -1),
+                    desc=f"Error with code -3: Waiting for {self.__wait_time} sec",
+                    leave=False,
+                )
                 if not self.__silent
-                else range(30, 0, -1)
+                else range(self.__wait_time, 0, -1)
             )
             for _ in it:
                 time.sleep(1.0)
         elif isinstance(ex, HTTPError) and ex.code == 429:
             it = (
-                tqdm(range(30, 0, -1), desc="API Limit Exceeded: Waiting for 30 sec", leave=False)
+                tqdm(
+                    range(self.__wait_time, 0, -1),
+                    desc=f"API Limit Exceeded: Waiting for {self.__wait_time} sec",
+                    leave=False,
+                )
                 if not self.__silent
-                else range(30, 0, -1)
+                else range(self.__wait_time, 0, -1)
             )
             for _ in it:
                 time.sleep(1.0)
@@ -275,8 +299,8 @@ class SemanticScholar(object):
                     "offset": 0,
                     "limit": 100,
                 }
-                response = urllib.request.urlopen(
-                    self.__api.search_by_title.format(QUERY=urllib.parse.urlencode(params)), timeout=api_timeout
+                response = self.__api.urlopen(
+                    self.__api.search_by_title, timeout=api_timeout, QUERY=urllib.parse.urlencode(params)
                 )
                 content = json.loads(response.read().decode("utf-8"))
                 time.sleep(sleep)
@@ -399,8 +423,8 @@ class SemanticScholar(object):
                     "references.influentialCitationCount",
                 ]
                 params = f'fields={",".join(fields)}'
-                response = urllib.request.urlopen(
-                    self.__api.search_by_id.format(PAPER_ID=paper_id, PARAMS=params), timeout=api_timeout
+                response = self.__api.urlopen(
+                    self.__api.search_by_id, timeout=api_timeout, PAPER_ID=paper_id, PARAMS=params
                 )
                 time.sleep(sleep)
                 break
@@ -514,7 +538,7 @@ class SemanticScholar(object):
                 )
                 for item in self.__clean(content, "references", [])
             ],
-            external_ids=self.__clean(content, "externalIds", {})
+            external_ids=self.__clean(content, "externalIds", {}),
         )
 
         return paper
@@ -536,8 +560,9 @@ class SemanticScholar(object):
                 ]
                 params = f'fields={",".join(fields)}'
                 query = "+".join([urllib.parse.quote(s) for s in author_name.lower().split()])
-                url = self.__api.search_by_author_name.format(QUERY=query, PARAMS=params)
-                response = urllib.request.urlopen(url, timeout=api_timeout)
+                response = self.__api.urlopen(
+                    self.__api.search_by_author_name, timeout=api_timeout, QUERY=query, PARAMS=params
+                )
                 time.sleep(sleep)
                 break
 
@@ -597,8 +622,8 @@ class SemanticScholar(object):
                     "hIndex",
                 ]
                 params = f'fields={",".join(fields)}'
-                response = urllib.request.urlopen(
-                    self.__api.search_by_author_id.format(AUTHOR_ID=author_id, PARAMS=params), timeout=api_timeout
+                response = self.__api.urlopen(
+                    self.__api.search_by_author_id, timeout=api_timeout, AUTHOR_ID=author_id, PARAMS=params
                 )
                 time.sleep(sleep)
                 break

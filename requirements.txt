@@ -18,6 +18,7 @@ progressbar
 py-cpuinfo
 pytest
 python-dateutil
+python-dotenv
 tqdm
 spacy
 janome
