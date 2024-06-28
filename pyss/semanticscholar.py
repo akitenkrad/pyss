@@ -7,7 +7,7 @@ import string
 import time
 import urllib.parse
 import urllib.request
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime
 from logging import Logger
 from pathlib import Path
@@ -585,9 +585,9 @@ class SemanticScholar(object):
 
         author = None
         if paper_id and len(content["data"]) > 0:
-            for data in content["data"]:
-                for paper in data["papers"]:
-                    if paper["paperId"] == paper_id:
+            for data in content.get("data", []):
+                for paper in data.get("papers", []):
+                    if paper.get("paperId", "") == paper_id:
                         author = data
         elif len(content["data"]) > 0:
             author = content["data"][0]
