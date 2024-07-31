@@ -286,8 +286,6 @@ class SemanticScholar(object):
         """
         # remove punctuation
         title = title
-        for punc in string.punctuation:
-            title = title.replace(punc, " ")
         title = re.sub(r"\s\s+", " ", title, count=1000)
 
         retry = 0
